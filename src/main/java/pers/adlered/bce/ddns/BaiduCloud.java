@@ -3,6 +3,7 @@ package pers.adlered.bce.ddns;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
@@ -26,20 +27,30 @@ public class BaiduCloud {
     private static final String AK = "35e5d39ce0cc4370ae2e5ba6688fecb4";
     private static final String SK = "0fc6d606526c424ba1f6da03662b7e4b";
 
-    public static void main(String[] args) throws Exception {
-        String listParam = "{\n\"domain\" : \"stackoverflow.wiki\"\n}";
-        String result = run("list", listParam);
+    /**
+     * java -jar bce_ddns.jar [Domain] [A Record] [AK] [SK]
+     *
+     * @param args 参数
+     */
+    public static void main(String[] args) {
+        try {
+            String listParam = "{\n\"domain\" : \"stackoaverflow.wiki\"\n}";
+            String result = run("list", listParam);
+        } catch (Exception e) {
+            System.out.println("An error has been captured: " + e.getMessage());
+        }
     }
 
     /**
      * 请求域名解析相关接口
-     * @param mode 支持三个 API：
-     *             list - 列表
-     *             add - 添加
-     *             edit - 编辑
-     * @param param
-     * @return
-     * @throws Exception
+     *
+     * @param mode  支持三个 API：
+     *              list - 列表
+     *              add - 添加
+     *              edit - 编辑
+     * @param param 参数
+     * @return 返回 JSON
+     * @throws Exception 异常处理丢给主线程
      */
     private static String run(String mode, String param) throws Exception {
         // ### 1. AuthStringPrefix 前缀字符串 ###
@@ -60,9 +71,6 @@ public class BaiduCloud {
         setCanonicalRequest("httpMethod", "POST");
         // CanonicalURI
         String queryUri = "/v1/domain/resolve/" + mode;
-        // String listUri = "/v1/domain/resolve/list";
-        // String addUri = "/v1/domain/resolve/add";
-        // String updateUri = "/v1/domain/resolve/edit";
         String canonicalUri = URLEncoder.encode(queryUri, "UTF-8");
         canonicalUri = canonicalUri.replaceAll("%2F", "/");
         setCanonicalRequest("canonicalURI", canonicalUri);
@@ -113,53 +121,38 @@ public class BaiduCloud {
         return sb.toString();
     }
 
-    public static String sendPost(String url, String param, String time, String authorization) {
-        PrintWriter out = null;
-        BufferedReader in = null;
+    public static String sendPost(String url, String param, String time, String authorization) throws Exception {
+        PrintWriter out;
+        BufferedReader in;
         StringBuilder result = new StringBuilder();
-        try {
-            URL realUrl = new URL(url);
-            // 打开和URL之间的连接
-            URLConnection conn = realUrl.openConnection();
-            // 设置通用的请求属性
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Host", "bcd.baidubce.com");
-            conn.setRequestProperty("x-bce-date", time);
-            conn.setRequestProperty("Authorization", authorization);
-            // 发送POST请求必须设置如下两行
-            conn.setDoOutput(true);
-            conn.setDoInput(true);
-            // 获取URLConnection对象对应的输出流
-            out = new PrintWriter(conn.getOutputStream());
-            // 发送请求参数
-            out.print(param);
-            // flush输出流的缓冲
-            out.flush();
-            // 定义BufferedReader输入流来读取URL的响应
-            in = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream()));
-            String line;
-            while ((line = in.readLine()) != null) {
-                result.append(line);
-            }
-        } catch (Exception e) {
-            System.out.println("发送 POST 请求出现异常！"+e);
-            e.printStackTrace();
+        URL realUrl = new URL(url);
+        // 打开和 URL 之间的连接
+        URLConnection conn = realUrl.openConnection();
+        // 设置通用的请求属性
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Host", "bcd.baidubce.com");
+        conn.setRequestProperty("x-bce-date", time);
+        conn.setRequestProperty("Authorization", authorization);
+        // 发送 POST 请求必须设置如下两行
+        conn.setDoOutput(true);
+        conn.setDoInput(true);
+        // 获取 URLConnection 对象对应的输出流
+        out = new PrintWriter(conn.getOutputStream());
+        // 发送请求参数
+        out.print(param);
+        // Flush 输出流的缓冲
+        out.flush();
+        // 定义 BufferedReader 输入流来读取URL的响应
+        in = new BufferedReader(
+                new InputStreamReader(conn.getInputStream()));
+        String line;
+        while ((line = in.readLine()) != null) {
+            result.append(line);
         }
-        //使用finally块来关闭输出流、输入流
-        finally{
-            try{
-                if(out!=null){
-                    out.close();
-                }
-                if(in!=null){
-                    in.close();
-                }
-            }
-            catch(IOException ex){
-                ex.printStackTrace();
-            }
-        }
+        // 关闭输出流、输入流
+        out.close();
+        in.close();
+
         return result.toString();
     }
 }
