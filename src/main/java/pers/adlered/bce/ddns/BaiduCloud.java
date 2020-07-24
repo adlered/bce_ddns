@@ -58,7 +58,7 @@ public class BaiduCloud {
          //       URLEncoder.encode("domain") + "=" + URLEncoder.encode("stackoverflow.wiki", "UTF-8"));
         setCanonicalRequest("canonicalQueryString", "");
         // CanonicalHeaders
-        String canonicalHeaders = "host:bcd.baidubce.com\nx-bce-date:" + timestamp;
+        String canonicalHeaders = "host:bcd.baidubce.com\nx-bce-date:" + timestamp.replaceAll(":", "%3A");
         setCanonicalRequest("canonicalHeaders", canonicalHeaders);
         // SignedHeaders 签名头域
         String signedHeaders = "host;x-bce-date";
