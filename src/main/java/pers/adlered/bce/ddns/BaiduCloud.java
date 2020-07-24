@@ -27,6 +27,21 @@ public class BaiduCloud {
     private static final String SK = "0fc6d606526c424ba1f6da03662b7e4b";
 
     public static void main(String[] args) throws Exception {
+        String listParam = "{\n\"domain\" : \"stackoverflow.wiki\"\n}";
+        String result = run("list", listParam);
+    }
+
+    /**
+     * 请求域名解析相关接口
+     * @param mode 支持三个 API：
+     *             list - 列表
+     *             add - 添加
+     *             edit - 编辑
+     * @param param
+     * @return
+     * @throws Exception
+     */
+    private static String run(String mode, String param) throws Exception {
         // ### 1. AuthStringPrefix 前缀字符串 ###
         // AccessKeyId
         setAuthStringPrefix("accessKeyId", AK);
@@ -44,7 +59,8 @@ public class BaiduCloud {
         // HTTP Method
         setCanonicalRequest("httpMethod", "POST");
         // CanonicalURI
-        String queryUri = "/v1/domain/resolve/list";
+        String queryUri = "/v1/domain/resolve/" + mode;
+        // String listUri = "/v1/domain/resolve/list";
         // String addUri = "/v1/domain/resolve/add";
         // String updateUri = "/v1/domain/resolve/edit";
         String canonicalUri = URLEncoder.encode(queryUri, "UTF-8");
@@ -68,8 +84,10 @@ public class BaiduCloud {
         String authorization = authStringPrefix + "/" + signedHeaders + "/" + signature;
         System.out.println("Authorization = " + authorization);
 
-        String result = sendPost("http://bcd.baidubce.com/v1/domain/resolve/list", "{\n\"domain\" : \"stackoverflow.wiki\"\n}", timestamp, authorization);
+        String result = sendPost("http://bcd.baidubce.com/v1/domain/resolve/" + mode, param, timestamp, authorization);
         System.out.println(result);
+
+        return result;
     }
 
     private static void setAuthStringPrefix(String key, Object value) {
