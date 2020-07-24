@@ -73,7 +73,8 @@ public class BaiduCloud {
         String authorization = authStringPrefix + "/" + signedHeaders + "/" + signature;
         System.out.println("Authorization = " + authorization);
 
-        sendPost("http://bcd.baidubce.com/v1/domain/resolve/list", "{\n\"domain\" : \"stackoverflow.wiki\"\n}", timestamp, authorization);
+        String result = sendPost("http://bcd.baidubce.com/v1/domain/resolve/list", "{\n\"domain\" : \"stackoverflow.wiki\"\n}", timestamp, authorization);
+        System.out.println(result);
     }
 
     private static void setAuthStringPrefix(String key, Object value) {
@@ -108,12 +109,10 @@ public class BaiduCloud {
             // 打开和URL之间的连接
             URLConnection conn = realUrl.openConnection();
             // 设置通用的请求属性
+            conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Host", "bcd.baidubce.com");
             conn.setRequestProperty("x-bce-date", time);
             conn.setRequestProperty("Authorization", authorization);
-            conn.setRequestProperty("User-Agent", "");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Accept", "");
             // 发送POST请求必须设置如下两行
             conn.setDoOutput(true);
             conn.setDoInput(true);
