@@ -1,9 +1,12 @@
 package pers.adlered.bce.ddns;
 
+import com.google.gson.Gson;
+import pers.adlered.bce.ddns.bean.list.DnsList;
+import pers.adlered.bce.ddns.bean.list.DnsListInfo;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
@@ -11,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * <h3>bce_ddns</h3>
@@ -24,20 +29,75 @@ public class BaiduCloud {
     private static String authStringPrefix = "bce-auth-v1/{accessKeyId}/{timestamp}/{expirationPeriodInSeconds}";
     private static String canonicalRequest = "{httpMethod}" + "\n" + "{canonicalURI}" + "\n" + "{canonicalQueryString}" + "\n" + "{canonicalHeaders}";
 
-    private static final String AK = "35e5d39ce0cc4370ae2e5ba6688fecb4";
-    private static final String SK = "0fc6d606526c424ba1f6da03662b7e4b";
+    private static String AK;
+    private static String SK;
+
+    private static long nextTimeMillis = 10 * 60 * 1000;
 
     /**
-     * java -jar bce_ddns.jar [Domain] [A Record] [AK] [SK]
+     * java -jar bce_ddns.jar [Domain] [A Record] [AK] [SK] [Interval By Minute (Optional)]
      *
      * @param args 参数
      */
-    public static void main(String[] args) {
-        try {
-            String listParam = "{\n\"domain\" : \"stackoaverflow.wiki\"\n}";
-            String result = run("list", listParam);
-        } catch (Exception e) {
-            System.out.println("An error has been captured: " + e.getMessage());
+    public static void main(String[] args) throws InterruptedException {
+        while (true) {
+            try {
+                String userDomain = args[0];
+                String userRecord = args[1];
+                AK = args[2];
+                SK = args[3];
+                try {
+                    nextTimeMillis = Long.parseLong(args[4]) * 60 * 1000;
+                } catch (Exception e) {
+                    nextTimeMillis = 10 * 60 * 1000;
+                }
+
+                String listParam = "{\n" +
+                        "\"domain\" : \"" + userDomain + "\"\n" +
+                        "}";
+                String domainResult = run("list", listParam);
+                Gson gson = new Gson();
+                DnsList dnsList = gson.fromJson(domainResult, DnsList.class);
+                // 如果 recordExists 为 false，会新建一个 A 记录，反之更新
+                boolean recordExists = false;
+                int recordId = 0;
+                for (DnsListInfo dnsInfo : dnsList.result) {
+                    String record = dnsInfo.domain;
+                    String type = dnsInfo.rdtype;
+                    if (userRecord.equals(record) && "A".equals(type)) {
+                        recordExists = true;
+                        recordId = dnsInfo.recordId;
+                        System.out.println("Found exists A-Record: " + type + " " + record);
+                    }
+                }
+                if (recordExists) {
+                    String updateParam = "{\n" +
+                            "\"recordId\" : " + recordId + ",\n" +
+                            "\"domain\" : \"" + userRecord + "\",\n" +
+                            "\"rdType\" : \"A\",\n" +
+                            "\"rdata\" : \"" + getRealIp() + "\",\n" +
+                            "\"zoneName\" : \"" + userDomain + "\"\n" +
+                            "}";
+                    System.out.println("Updating A-Record...\n" + updateParam);
+                    System.out.println(run("edit", updateParam));
+                } else {
+                    String addParam = "{\n" +
+                            "\"domain\" : \"" + userRecord + "\",\n" +
+                            "\"rdType\" : \"A\",\n" +
+                            "\"rdata\" : \"" + getRealIp() + "\",\n" +
+                            "\"zoneName\" : \"" + userDomain + "\"\n" +
+                            "}";
+                    System.out.println("Newing A-Record...\n" + addParam);
+                    System.out.println(run("add", addParam));
+                }
+            } catch (Exception e) {
+                System.out.println("An error has been captured: " + e.getMessage());
+            }
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MM-dd HH:mm:ss");
+            String now = dateFormat.format(new Date());
+            String next = dateFormat.format(new Date(System.currentTimeMillis() + nextTimeMillis));
+            System.out.println("Done, waiting for next time [nowTime=" + now + ", nextRuntime=" + next + "]");
+            Thread.sleep(nextTimeMillis);
         }
     }
 
@@ -53,6 +113,8 @@ public class BaiduCloud {
      * @throws Exception 异常处理丢给主线程
      */
     private static String run(String mode, String param) throws Exception {
+        authStringPrefix = "bce-auth-v1/{accessKeyId}/{timestamp}/{expirationPeriodInSeconds}";
+        canonicalRequest = "{httpMethod}" + "\n" + "{canonicalURI}" + "\n" + "{canonicalQueryString}" + "\n" + "{canonicalHeaders}";
         // ### 1. AuthStringPrefix 前缀字符串 ###
         // AccessKeyId
         setAuthStringPrefix("accessKeyId", AK);
@@ -93,19 +155,17 @@ public class BaiduCloud {
         System.out.println("Authorization = " + authorization);
 
         String result = sendPost("http://bcd.baidubce.com/v1/domain/resolve/" + mode, param, timestamp, authorization);
-        System.out.println(result);
+        System.out.println("HTTP 200 OK");
 
         return result;
     }
 
     private static void setAuthStringPrefix(String key, Object value) {
         authStringPrefix = authStringPrefix.replaceAll(String.format("\\{%s\\}", key), value.toString());
-        System.out.println("[AuthStringPrefix] " + authStringPrefix);
     }
 
     private static void setCanonicalRequest(String key, Object value) {
         canonicalRequest = canonicalRequest.replaceAll(String.format("\\{%s\\}", key), value.toString());
-        System.out.println("*** [CanonicalRequest START] ***\n" + canonicalRequest + "\n*** [CanonicalRequest END] ***");
     }
 
     public static String hMacSha256(String data, String key) throws Exception {
@@ -154,5 +214,35 @@ public class BaiduCloud {
         in.close();
 
         return result.toString();
+    }
+    
+    private static String getRealIp() {
+        String ip = httpGet("https://programmingwithlove.stackoverflow.wiki/ip");
+        System.out.println("[GETIP] " + ip);
+        if (ip.contains(",")) {
+            ip = ip.split(",")[0];
+        }
+
+        return ip;
+    }
+
+    private static String httpGet(String url) {
+        StringBuffer buffer = new StringBuffer();
+        try {
+            URLConnection conn = new URL(url).openConnection();
+            conn.addRequestProperty("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.89 Safari/537.36");
+            conn.addRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9");
+            try (InputStream inputStream = conn.getInputStream();
+                 InputStreamReader streamReader = new InputStreamReader(inputStream);
+                 BufferedReader reader = new BufferedReader(streamReader)) {
+                String line = null;
+                while ((line = reader.readLine()) != null) {
+                    buffer.append(line).append(System.lineSeparator());
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return buffer.toString();
     }
 }
