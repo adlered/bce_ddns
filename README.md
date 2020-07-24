@@ -4,7 +4,7 @@
 
 ### 使用方法
 
-到 Release 页面下载打包好的 jar 包，使用以下命令运行（需要先安装 Java 并且配置好环境变量）：
+到 [Release页面](https://github.com/adlered/bce_ddns/releases) 下载打包好的 jar 包，使用以下命令运行（需要先安装 Java 并且配置好环境变量）：
 
 ```
 java -jar bce_ddns.jar [域名] [A 记录] [Access Key] [Secret Key] [循环更新时间，按分钟间隔（可选，默认10分钟）]
