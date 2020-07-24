@@ -10,7 +10,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="bce_ddns" target="7" />
+      <module name="bce_ddns" target="8" />
     </bytecodeTargetLevel>
   </component>
 </project>

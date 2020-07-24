@@ -42,10 +42,17 @@ public class BaiduCloud {
     public static void main(String[] args) throws InterruptedException {
         while (true) {
             try {
-                String userDomain = args[0];
-                String userRecord = args[1];
-                AK = args[2];
-                SK = args[3];
+                String userDomain;
+                String userRecord;
+                try {
+                    userDomain = args[0];
+                    userRecord = args[1];
+                    AK = args[2];
+                    SK = args[3];
+                } catch (Exception e) {
+                    System.out.println("Usage: java -jar bce_ddns.jar [Domain] [A Record] [AK] [SK] [Interval By Minute (Optional)]");
+                    break;
+                }
                 try {
                     nextTimeMillis = Long.parseLong(args[4]) * 60 * 1000;
                 } catch (Exception e) {
