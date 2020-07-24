@@ -18,7 +18,7 @@ import java.util.Date;
 public class BaiduCloud {
 
     private static String authStringPrefix = "bce-auth-v1/{accessKeyId}/{timestamp}/{expirationPeriodInSeconds}";
-    private static String signedHeaders = "{httpMethod}" + "\n" + "{canonicalURI}" + "\n" + "{canonicalQueryString}" + "\n" + "{canonicalHeaders}";
+    private static String canonicalRequest = "{httpMethod}" + "\n" + "{canonicalURI}" + "\n" + "{canonicalQueryString}" + "\n" + "{canonicalHeaders}";
 
     private static final String AK = "35e5d39ce0cc4370ae2e5ba6688fecb4";
     private static final String SK = "0fc6d606526c424ba1f6da03662b7e4b";
@@ -28,34 +28,39 @@ public class BaiduCloud {
         // AccessKeyId
         setAuthStringPrefix("accessKeyId", AK);
         // TimeStamp
-        String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss'Z'").format(new Date());
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(new Date());
         setAuthStringPrefix("timestamp", timestamp);
         // ExpirationPeriodInSeconds
         setAuthStringPrefix("expirationPeriodInSeconds", 3600);
 
-        // ### 2. SignedHeaders 签名头域 ###
-        // Canonical Request 规范请求
+        // ### 2. Canonical Request 规范请求 ###
         // HTTP Method
-        setSignedHeaders("httpMethod", "POST");
+        setCanonicalRequest("httpMethod", "POST");
         // CanonicalURI
         String queryUri = "/v1/domain/resolve/list";
         String addUri = "/v1/domain/resolve/add";
         String updateUri = "/v1/domain/resolve/edit";
         String canonicalUri = URLEncoder.encode(queryUri, "UTF-8");
         canonicalUri = canonicalUri.replaceAll("%2F", "/");
-        setSignedHeaders("canonicalURI", canonicalUri);
+        setCanonicalRequest("canonicalURI", canonicalUri);
         // CanonicalQueryString
-        setSignedHeaders("canonicalQueryString", "");
+        setCanonicalRequest("canonicalQueryString", "" +
+                URLEncoder.encode("domain") + "=" + URLEncoder.encode("stackoverflow.wiki", "UTF-8"));
         // CanonicalHeaders
-        String canonicalHeaders = "host:bcd.baidubce.com";
-        setSignedHeaders("canonicalHeaders", canonicalHeaders);
+        String canonicalHeaders = "host:bcd.baidubce.com\nx-bce-date:" + timestamp;
+        setCanonicalRequest("canonicalHeaders", canonicalHeaders);
+        // SignedHeaders 签名头域
+        String signedHeaders = "";
         // SigningKey 派生密钥
         String signingKey = hMacSha256(authStringPrefix, SK);
         System.out.println("SigningKey = " + signingKey);
-        // Signature
-        String signature = hMacSha256(canonicalHeaders, signingKey);
+        // Signature 签名摘要
+        String signature = hMacSha256(canonicalRequest, signingKey);
         System.out.println("Signature = " + signature);
 
+        // ### Authorization 认证字符串 ###
+        String authorization = authStringPrefix + "/" + signedHeaders + "/" + signature;
+        System.out.println("Authorization = " + authorization);
     }
 
     private static void setAuthStringPrefix(String key, Object value) {
@@ -63,9 +68,9 @@ public class BaiduCloud {
         System.out.println("[AuthStringPrefix] " + authStringPrefix);
     }
 
-    private static void setSignedHeaders(String key, Object value) {
-        signedHeaders = signedHeaders.replaceAll("\\{" + key + "\\}", value.toString());
-        System.out.println("*** [SignedHeaders START] ***\n" + signedHeaders + "\n*** [SignedHeaders END] ***");
+    private static void setCanonicalRequest(String key, Object value) {
+        canonicalRequest = canonicalRequest.replaceAll("\\{" + key + "\\}", value.toString());
+        System.out.println("*** [CanonicalRequest START] ***\n" + canonicalRequest + "\n*** [CanonicalRequest END] ***");
     }
 
     public static String hMacSha256(String data, String key) throws Exception {
