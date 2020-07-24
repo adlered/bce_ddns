@@ -7,12 +7,9 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.TimeZone;
 
 /**
  * <h3>bce_ddns</h3>
@@ -48,14 +45,12 @@ public class BaiduCloud {
         setCanonicalRequest("httpMethod", "POST");
         // CanonicalURI
         String queryUri = "/v1/domain/resolve/list";
-        String addUri = "/v1/domain/resolve/add";
-        String updateUri = "/v1/domain/resolve/edit";
+        // String addUri = "/v1/domain/resolve/add";
+        // String updateUri = "/v1/domain/resolve/edit";
         String canonicalUri = URLEncoder.encode(queryUri, "UTF-8");
         canonicalUri = canonicalUri.replaceAll("%2F", "/");
         setCanonicalRequest("canonicalURI", canonicalUri);
         // CanonicalQueryString
-        //setCanonicalRequest("canonicalQueryString", "" +
-         //       URLEncoder.encode("domain") + "=" + URLEncoder.encode("stackoverflow.wiki", "UTF-8"));
         setCanonicalRequest("canonicalQueryString", "");
         // CanonicalHeaders
         String canonicalHeaders = "host:bcd.baidubce.com\nx-bce-date:" + timestamp.replaceAll(":", "%3A");
@@ -78,23 +73,23 @@ public class BaiduCloud {
     }
 
     private static void setAuthStringPrefix(String key, Object value) {
-        authStringPrefix = authStringPrefix.replaceAll("\\{" + key + "\\}", value.toString());
+        authStringPrefix = authStringPrefix.replaceAll(String.format("\\{%s\\}", key), value.toString());
         System.out.println("[AuthStringPrefix] " + authStringPrefix);
     }
 
     private static void setCanonicalRequest(String key, Object value) {
-        canonicalRequest = canonicalRequest.replaceAll("\\{" + key + "\\}", value.toString());
+        canonicalRequest = canonicalRequest.replaceAll(String.format("\\{%s\\}", key), value.toString());
         System.out.println("*** [CanonicalRequest START] ***\n" + canonicalRequest + "\n*** [CanonicalRequest END] ***");
     }
 
     public static String hMacSha256(String data, String key) throws Exception {
-        Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secret_key = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        sha256_HMAC.init(secret_key);
-        byte[] array = sha256_HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        Mac mac = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        mac.init(secretKey);
+        byte[] array = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
         StringBuilder sb = new StringBuilder();
         for (byte item : array) {
-            sb.append(Integer.toHexString((item & 0xFF) | 0x100).substring(1, 3));
+            sb.append(Integer.toHexString((item & 0xFF) | 0x100), 1, 3);
         }
 
         return sb.toString();
@@ -103,7 +98,7 @@ public class BaiduCloud {
     public static String sendPost(String url, String param, String time, String authorization) {
         PrintWriter out = null;
         BufferedReader in = null;
-        String result = "";
+        StringBuilder result = new StringBuilder();
         try {
             URL realUrl = new URL(url);
             // 打开和URL之间的连接
@@ -127,7 +122,7 @@ public class BaiduCloud {
                     new InputStreamReader(conn.getInputStream()));
             String line;
             while ((line = in.readLine()) != null) {
-                result += line;
+                result.append(line);
             }
         } catch (Exception e) {
             System.out.println("发送 POST 请求出现异常！"+e);
@@ -147,31 +142,6 @@ public class BaiduCloud {
                 ex.printStackTrace();
             }
         }
-        return result;
-    }
-
-    public static Date parseUTCText(String text) throws ParseException {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-        if (text.indexOf(".") > -1) {
-            String prefix = text.substring(0, text.indexOf("."));
-            String suffix = text.substring(text.indexOf("."));
-            if (suffix.length() >= 5) {
-                suffix = suffix.substring(0, 4) + "Z";
-            } else {
-                int len = 5 - suffix.length();
-                String temp = "";
-                temp += suffix.substring(0, suffix.length() - 1);
-                for (int i = 0; i < len; i++) {
-                    temp += "0";
-                }
-                suffix = temp + "Z";
-            }
-            text = prefix + suffix;
-        } else {
-            text = text.substring(0, text.length() - 1) + ".000Z";
-        }
-        Date date = sdf.parse(text);
-        return date;
+        return result.toString();
     }
 }
